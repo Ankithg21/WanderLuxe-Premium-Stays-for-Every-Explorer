@@ -12,12 +12,14 @@ const {listingSchema,reviewSchema}=require("./schema.js");
 const Review=require("./models/review.js");
 const session=require("express-session");
 const flash=require("connect-flash");
+// const flash = require("express-flash");
 const passport=require("passport");
 const LocalStrategy=require("passport-local");
 const User=require("./models/user.js");
 
-const listings=require("./routes/listings.js");
-const reviews=require("./routes/review.js");
+const listingRouter=require("./routes/listings.js");
+const reviewRouter=require("./routes/review.js");
+const userRouter=require("./routes/user.js");
 
 app.use(express.urlencoded({extended:true}));
 app.use(body_parser.urlencoded({extended:true}));
@@ -48,24 +50,33 @@ const sessionOption={
     }
 };
 
+app.use(session({
+    secret: "your_secret_key",
+    resave: false,
+    saveUninitialized: false
+}));
+
 app. use(session(sessionOption));
 app.use(flash());
 
 // Authentication MiddleWares.
 app.use(passport.initialize());
 app.use(passport.session());
-passport.use(LocalStrategy(User.authenticate()));
+passport.use(new LocalStrategy(User.authenticate()));
 passport.serializeUser(User.deserializeUser());
 passport.deserializeUser(User.deserializeUser());
 
 app.use((req,res,next)=>{
     res.locals.success=req.flash("success");
     res.locals.error=req.flash("error");
+    res.locals.currUser=req.user;
     next();
 });
 
-app.use("/listings",listings);
-app.use("/listings/:id/reviews",reviews);
+//Routers
+app.use("/listings",listingRouter);
+app.use("/listings/:id/reviews",reviewRouter);
+app.use("/",userRouter);
 
 app.get("/",(req,res)=>{
     res.send("Hii");
