@@ -8,7 +8,9 @@ const session=require("express-session");
 const flash=require("connect-flash");
 const body_parser=require("body-parser");
 const LocalStrategy=require("passport-local");
+const {saveRedirectUrl}=require("../middleware.js");
 
+//sessions.
 const sessionOption={
     secret:"mysupersecretcode",
     resave:false,
@@ -35,6 +37,7 @@ passport.use(new LocalStrategy(
     }
 ));
 
+//For User Search in DB, Authentications.
 passport.serializeUser(function(user, done) {
     done(null, user.id);
 });
@@ -61,9 +64,14 @@ router.post("/signup",wrapAsync(async(req,res)=>{
     try{
         let {username,email,password}=req.body;
         const newUser=new User({username,email});
-        await User.register(newUser,password);
-        req.flash("success",`Welcome ${username}!`);
-        res.redirect("/listings");
+        const registeredUser=await User.register(newUser,password);
+        req.login(registeredUser,(err)=>{
+            if(err){
+                return next(err);
+            }
+            req.flash("success",`Welcome ${username}!`);
+            res.redirect("/listings");
+        });
     }
     catch(err){
         req.flash("error",err.message);
@@ -76,10 +84,17 @@ router.get("/login",(req,res)=>{
 });
 
 router.post("/login",
+    saveRedirectUrl,
     passport.authenticate("local",{failureRedirect:"/login",failureFlash:true}),
     async(req,res)=>{
     req.flash("success","Welcome Back!");
-    res.redirect("/listings");
+    if(res.locals.redirectUrl){
+        redirectUrl=res.locals.redirectUrl
+    }
+    else{
+        redirectUrl="/listings";
+    }
+    res.redirect(redirectUrl);
 });
 
 router.get("/logout",(req,res,next)=>{
